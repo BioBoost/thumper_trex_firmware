@@ -21,6 +21,7 @@
 
 // define constants here
 #define startbyte 0x0F                                 // for serial communications each datapacket must start with this byte
+#define _DO_DEBUG_
 
 // define global variables here
 byte mode=0;                                           // mode=0: I2C / mode=1: Radio Control / mode=2: Bluetooth / mode=3: Shutdown
@@ -117,6 +118,11 @@ void setup()
     Wire.onReceive(I2Ccommand);                        // specify ISR for data received
     Wire.onRequest(I2Cstatus);                         // specify ISR for data to be sent
   }
+
+  #ifdef _DO_DEBUG_
+  Serial.begin(9600);
+  Serial.print("Starting TRex controller ...");
+  #endif
 }
 
 
