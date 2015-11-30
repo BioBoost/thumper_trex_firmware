@@ -16,8 +16,6 @@
 
 
 #include <Wire.h>             // interrupt based I2C library
-#include <Servo.h>            // library to drive up to 12 servos using timer1
-#include <EEPROM.h>           // library to access EEPROM memory
 #include "IOpins.h"           // defines which I/O pin is used for what function
 
 // define constants here
@@ -37,7 +35,6 @@ struct Motor {
   int speed;            // motor speeds -255 to +255
   byte brake;           // brakes - non zero values enable brake
   int current;          // motor current
-  int encoder;          // encoder values
 };
 
 struct Battery {
@@ -49,11 +46,7 @@ enum ErrorFlags {
   START_BYTE = 0x01,      // Start byte not received or incorrect data packet size.
   PWM_FREQ = 0x02,        // PWM frequency was not 1-7.
   MOTOR_SPEED = 0x04,     // Left or right motor speed was not -255 to +255.
-  SERVO = 0x08,           // One or more servo positions was not -2400 to +2400.
-  IMPACT = 0x10,          // Impact sensitivity not 0-1023.
-  BATT_THRESHOLD = 0x20,  // Low battery was not 550 to 3000 (5.5V to 30V).
-  I2C_ADDRESS = 0x40,     // I²C slave address was not 0-127.
-  I2C_FREQ = 0x80         // I²C speed not 0 or 1 (100kHz or 400kHz)
+  BATT_THRESHOLD = 0x08,  // Low battery was not 550 to 3000 (5.5V to 30V).
 };
 
 struct TRexStatusPacket {
@@ -61,15 +54,7 @@ struct TRexStatusPacket {
   byte errorflags;
   int battery_voltage;
   int left_motor_current;
-  int left_motor_encoder;
   int right_motor_current;
-  int right_motor_encoder;
-  int accelerometer_x;
-  int accelerometer_y;
-  int accelerometer_z;
-  int impact_x;
-  int impact_y;
-  int impact_z;
 };
 
 // Define global variables here
@@ -79,18 +64,9 @@ I2cConfig i2c_config;
 Motor leftmotor;
 Motor rightmotor;
 byte errorflags;
+unsigned long time;         // Timer for analogue readouts
+TRexStatusPacket status;    // Status of TRex controller (used for sending with i2c)
 
-TRexStatusPacket status;
-
-int xaxis,yaxis,zaxis;                                 // X, Y, Z accelerometer readings
-int deltx,delty,deltz;                                 // X, Y, Z impact readings 
-int magnitude;                                         // impact magnitude
-byte devibrate=50;                                     // number of 2mS intervals to wait after an impact has occured before a new impact can be recognized
-int sensitivity=50;                                    // minimum magnitude required to register as an impact
-
-byte servopin[6]={7,8,12,13,5,6};                      // array stores IO pin for each servo
-int servopos[6];                                       // array stores position data for up to 6 servos
-Servo servo[6];                                        // create 6 servo objects as an array
 
 void setup()
 {
@@ -147,17 +123,6 @@ void setup()
 
   //----------------------------------------------------- Configure for I²C control ------------------------------------------------------
   MotorBeep(1);                                      // generate 1 beep from the motors to indicate I²C mode enabled
-  byte i=EEPROM.read(0);                             // check EEPROM to see if I²C address has been previously stored
-  if(i==0x55)                                        // B01010101 is written to the first byte of EEPROM memory to indicate that an I2C address has been previously stored
-  {
-    i2c_config.address = EEPROM.read(1);                       // read I²C address from EEPROM
-  }
-  else                                               // EEPROM has not previously been used by this program
-  {
-    EEPROM.write(0,0x55);                            // set first byte to 0x55 to indicate EEPROM is now being used by this program
-    EEPROM.write(1,0x07);                            // store default I²C address
-    i2c_config.address = 0x07;                       // set I²C address to default
-  }
   
   Wire.begin(i2c_config.address);                    // join I²C bus as a slave at I2Caddress
   Wire.onReceive(I2Ccommand);                        // specify ISR for data received
@@ -198,30 +163,17 @@ void loop()
   //                  If you edit this code then be aware that impact detection may be affected if care is not taken.                  //
   //=====================================================================================================================================
 
-
-  static byte alternate;                               // variable used to alternate between reading accelerometer and power analog inputs
-  
-  //----------------------------------------------------- Perform these functions every 1mS ---------------------------------------------- 
-  if(micros()-time>999)                       
+  //----------------------------------------------------- Perform these functions every 2mS ---------------------------------------------- 
+  if(micros()-time >= 2000)                       
   {
-    time=micros();                                     // reset timer
-    alternate=alternate^1;                             // toggle alternate between 0 and 1
-    Encoders();                                        // check encoder status every 1mS
+    time = micros();                                     // reset timer
 
-    //--------------------------------------------------- These functions must alternate as they both take in excess of 780uS ------------    
-    if(alternate)
-    {
-      Accelerometer();                                 // monitor accelerometer every second millisecond                            
-    }
-    else 
-    {
-      leftmotor.current = (analogRead(lmcurpin)-511)*48.83;     // read  left motor current sensor and convert reading to mA
-      rightmotor.current = (analogRead(rmcurpin)-511)*48.83;    // read right motor current sensor and convert reading to mA
-      
-      battery.voltage = analogRead(voltspin)*10/3.357;          // read battery level and convert to volts with 2 decimal places (eg. 1007 = 10.07 V)
-      if(battery.voltage < battery.threshold) {
-        mode = LOW_BATTERY;                      // change to shutdown mode if battery voltage too low
-      }
+    leftmotor.current = (analogRead(lmcurpin)-511)*48.83;     // read  left motor current sensor and convert reading to mA
+    rightmotor.current = (analogRead(rmcurpin)-511)*48.83;    // read right motor current sensor and convert reading to mA
+    
+    battery.voltage = analogRead(voltspin)*10/3.357;          // read battery level and convert to volts with 2 decimal places (eg. 1007 = 10.07 V)
+    if(battery.voltage < battery.threshold) {
+      mode = LOW_BATTERY;                      // change to shutdown mode if battery voltage too low
     }
   }
 }

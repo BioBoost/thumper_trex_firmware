@@ -3,16 +3,10 @@ void Motors()
   digitalWrite(lmbrkpin,leftmotor.brake>0);                     // if left brake>0 then engage electronic braking for left motor
   digitalWrite(lmdirpin,leftmotor.speed>0);                     // if left speed>0 then left motor direction is forward else reverse
   analogWrite (lmpwmpin,abs(leftmotor.speed));                  // set left PWM to absolute value of left speed - if brake is engaged then PWM controls braking
-  if(leftmotor.brake>0 && leftmotor.speed==0) {
-    leftmotor.encoder=0;                  // if left brake is enabled and left speed=0 then reset left encoder counter
-  }
   
   digitalWrite(rmbrkpin,rightmotor.brake>0);                     // if right brake>0 then engage electronic braking for right motor
   digitalWrite(rmdirpin,rightmotor.speed>0);                     // if right speed>0 then right motor direction is forward else reverse
   analogWrite (rmpwmpin,abs(rightmotor.speed));                  // set right PWM to absolute value of right speed - if brake is engaged then PWM controls braking
-  if(rightmotor.brake>0 && rightmotor.speed==0) {
-    rightmotor.encoder=0;                  // if right brake is enabled and right speed=0 then reset right encoder counter
-  }
 }
 
 void MotorBeep(byte beeps)                              
