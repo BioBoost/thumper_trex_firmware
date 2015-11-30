@@ -61,6 +61,15 @@ void I2Ccommand(int recvflag)
 
   battery.threshold = command.battery_threshold;
 
+  #ifdef _DO_DEBUG_
+  Serial.print("L-speed: ");
+  Serial.println(leftmotor.speed);
+  Serial.print("R-speed: ");
+  Serial.println(rightmotor.speed);
+  Serial.print("Battery threshold: ");
+  Serial.println(command.battery_threshold);
+  #endif
+
   mode = ALLGOOD;           // breaks out of Shutdown mode when I²C command is given
   Motors();                 // update brake, speed and direction of motors                                                                 // update servo positions
 }
