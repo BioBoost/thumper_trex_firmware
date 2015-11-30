@@ -11,7 +11,7 @@
 //                   /____/                  /____/       \____\   /_________________/    /_____/       \____\                         //
 //                                                                                                                                     //
 //                 T'REX robot controller designed and programmed by Russell Cameron for DAGU Hi-Tech Electronics                      //
-//                 Totally refactored by Nico De Witte (nico.dewitte@vives.be)                                                         //
+//                 Totally refactored and minified by Nico De Witte (nico.dewitte@vives.be)                                            //
 //=====================================================================================================================================//
 
 
@@ -44,7 +44,7 @@ struct Battery {
 
 enum ErrorFlags {
   START_BYTE = 0x01,      // Start byte not received or incorrect data packet size.
-  PWM_FREQ = 0x02,        // PWM frequency was not 1-7.
+  COMMAND_SIZE = 0x02,    // Number of bytes received is not correct
   MOTOR_SPEED = 0x04,     // Left or right motor speed was not -255 to +255.
   BATT_THRESHOLD = 0x08,  // Low battery was not 550 to 3000 (5.5V to 30V).
 };
@@ -55,6 +55,16 @@ struct TRexStatusPacket {
   int battery_voltage;
   int left_motor_current;
   int right_motor_current;
+  byte operation_mode;
+};
+
+struct TRexCommandPacket {
+  byte start;
+  int left_motor_speed;
+  byte left_motor_brake;
+  int right_motor_speed;
+  byte right_motor_brake;
+  int battery_threshold;
 };
 
 // Define global variables here
@@ -66,7 +76,7 @@ Motor rightmotor;
 byte errorflags;
 unsigned long time;         // Timer for analogue readouts
 TRexStatusPacket status;    // Status of TRex controller (used for sending with i2c)
-
+TRexCommandPacket command;  // For i2c command receival
 
 void setup()
 {
@@ -133,14 +143,13 @@ void setup()
   Serial.print("Starting TRex controller on address 0x");
   Serial.println(i2c_config.address, HEX);
 
-  // Some sanity check for primitive data type sizes
-  if (sizeof(TRexStatusPacket) == 24) {
-    Serial.println("Status packet is 24 bytes. All good");
-  } else {
-    Serial.print("Status packet is ");
-    Serial.print(sizeof(TRexStatusPacket));
-    Serial.println(" bytes. This is not correct. Using different processor ?");
-  }
+  Serial.print("Status packet is ");
+  Serial.print(sizeof(TRexStatusPacket));
+  Serial.println(" bytes.");
+
+  Serial.print("Command packet is ");
+  Serial.print(sizeof(TRexCommandPacket));
+  Serial.println(" bytes.");
   #endif
 }
 

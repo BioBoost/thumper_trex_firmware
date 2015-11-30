@@ -8,6 +8,7 @@ void I2Cstatus()
   status.battery_voltage = battery.voltage;
   status.left_motor_current = leftmotor.current;
   status.right_motor_current = rightmotor.current;
+  status.operation_mode = mode;
   
   // Data is send low byte first (Little Endian)
   Wire.write(((byte*)&status), sizeof(status));     // transmit data packet
