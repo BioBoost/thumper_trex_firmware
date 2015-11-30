@@ -11,16 +11,17 @@
 //                   /____/                  /____/       \____\   /_________________/    /_____/       \____\                         //
 //                                                                                                                                     //
 //                 T'REX robot controller designed and programmed by Russell Cameron for DAGU Hi-Tech Electronics                      //
+//                 Totally refactored by Nico De Witte (nico.dewitte@vives.be)                                                         //
 //=====================================================================================================================================//
 
 
-#include <Wire.h>                                      // interrupt based I2C library
-#include <Servo.h>                                     // library to drive up to 12 servos using timer1
-#include <EEPROM.h>                                    // library to access EEPROM memory
-#include "IOpins.h"                                    // defines which I/O pin is used for what function
+#include <Wire.h>             // interrupt based I2C library
+#include <Servo.h>            // library to drive up to 12 servos using timer1
+#include <EEPROM.h>           // library to access EEPROM memory
+#include "IOpins.h"           // defines which I/O pin is used for what function
 
 // define constants here
-#define startbyte 0x0F                                 // for serial communications each datapacket must start with this byte
+#define startbyte 0x0F        // for serial communications each datapacket must start with this byte
 #define _DO_DEBUG_
 
 // Operational mode of the controller
@@ -55,7 +56,23 @@ enum ErrorFlags {
   I2C_FREQ = 0x80         // I²C speed not 0 or 1 (100kHz or 400kHz)
 };
 
-// define global variables here
+struct TRexStatusPacket {
+  byte start;
+  byte errorflags;
+  int battery_voltage;
+  int left_motor_current;
+  int left_motor_encoder;
+  int right_motor_current;
+  int right_motor_encoder;
+  int accelerometer_x;
+  int accelerometer_y;
+  int accelerometer_z;
+  int impact_x;
+  int impact_y;
+  int impact_z;
+};
+
+// Define global variables here
 OperationMode mode = ALLGOOD;
 Battery battery;
 I2cConfig i2c_config;
@@ -63,14 +80,13 @@ Motor leftmotor;
 Motor rightmotor;
 byte errorflags;
 
+TRexStatusPacket status;
+
 int xaxis,yaxis,zaxis;                                 // X, Y, Z accelerometer readings
 int deltx,delty,deltz;                                 // X, Y, Z impact readings 
 int magnitude;                                         // impact magnitude
 byte devibrate=50;                                     // number of 2mS intervals to wait after an impact has occured before a new impact can be recognized
 int sensitivity=50;                                    // minimum magnitude required to register as an impact
-
-byte RCdeadband=35;                                    // RCsignal can vary this much from 1500uS without controller responding
-unsigned long time;                                    // timer used to monitor accelerometer and encoders
 
 byte servopin[6]={7,8,12,13,5,6};                      // array stores IO pin for each servo
 int servopos[6];                                       // array stores position data for up to 6 servos
@@ -151,6 +167,15 @@ void setup()
   Serial.begin(9600);
   Serial.print("Starting TRex controller on address 0x");
   Serial.println(i2c_config.address, HEX);
+
+  // Some sanity check for primitive data type sizes
+  if (sizeof(TRexStatusPacket) == 24) {
+    Serial.println("Status packet is 24 bytes. All good");
+  } else {
+    Serial.print("Status packet is ");
+    Serial.print(sizeof(TRexStatusPacket));
+    Serial.println(" bytes. This is not correct. Using different processor ?");
+  }
   #endif
 }
 
