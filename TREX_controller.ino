@@ -78,26 +78,6 @@ void setup()
   pinMode(rmdirpin,OUTPUT);                            // configure right motor direction pin for output
   pinMode(rmbrkpin,OUTPUT);                            // configure right motor brake     pin for output
   
-  //----------------------------------------------------- Test for RC inputs ------------------------------------------------------------
-
-  digitalWrite(RCspeedpin,1);                          // enable weak pullup resistor on input to prevent false triggering                   
-  digitalWrite(RCsteerpin,1);                          // enable weak pullup resistor on input to prevent false triggering
-  delay(100);
-  int t1=int(pulseIn(RCspeedpin,HIGH,30000));          // read throttle/left stick
-  int t2=int(pulseIn(RCsteerpin,HIGH,30000));          // read steering/right stick
-  if(t1>1000 && t1<2000 && t2>1000 && t2<2000)         // RC signals detected - go to RC mode
-  {
-    mode=1;                                            // set mode to RC
-    MotorBeep(3);                                      // generate 3 beeps from the motors to indicate RC mode enabled
-  }
-  
-  //----------------------------------------------------- Test for Bluetooth module ------------------------------------------------------
-  if(mode==0)                                          // no RC signals detected
-  {
-    BluetoothConfig();                                 // attempts to configure bluetooth module - changes to mode 2 if successful
-    if(mode==2) MotorBeep(2);                          // generate 2 beeps from the motors to indicate bluetooth mode enabled
-  }
-  
   //----------------------------------------------------- Configure for I²C control ------------------------------------------------------
   if(mode==0)                                          // no RC signal or bluetooth module detected
   {
@@ -137,20 +117,6 @@ void loop()
   if (mode==3)                                         // if battery voltage too low
   {
     Shutdown();                                        // Shutdown motors and servos
-    return;
-  }
-  
-  //----------------------------------------------------- RC Mode -----------------------------------------------------------------------
-  if(mode==1)                                           
-  {
-    RCmode();                                          // monitor signal from RC receiver and control motors
-    return;                                            // I²C, Bluetooth and accelerometer are ignored
-  }
-  
-  //----------------------------------------------------- Bluetooth mode ----------------------------------------------------------------
-  if(mode==2)
-  {
-    Bluetooth();                                       // control using Android phone and sample app
     return;
   }
   
