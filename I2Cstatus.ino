@@ -1,4 +1,6 @@
-//------------------------------------------------- Report control status to I²C Master -------------------------------------------------------- 
+#define _DO_DEBUG_
+
+
 void I2Cstatus()
 {
   byte datapack[24];                             // array to store data packet in prior to transmission
@@ -39,14 +41,12 @@ void I2Cstatus()
   datapack[23]= lowByte(deltz);                  // Z-axis impact data   low  byte
   
   Wire.write(datapack,24);                       // transmit data packet of 24 bytes
-  errorflags=0;                                   // reset erroflag once error has been reported to I²C Master
-  /*
+  errorflags = 0;                                   // reset erroflag once error has been reported to I²C Master
+
   Serial.println("Status data packet sent to Master:");
-  for(byte i=0;i<24;i++)
-  {
-    Serial.print(i,DEC);Serial.print("\t");Serial.println(datapack[i],DEC);
+  for(byte i = 0; i < 24; i++) {
+    Serial.print("0x");
+    Serial.print(datapack[i], HEX);
+    Serial.print(" ");
   }
-  */
 }
-
-

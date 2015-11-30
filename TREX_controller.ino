@@ -149,8 +149,8 @@ void setup()
 
   #ifdef _DO_DEBUG_
   Serial.begin(9600);
-  Serial.print("Starting TRex controller on address ");
-  Serial.println(i2c_config.address);
+  Serial.print("Starting TRex controller on address 0x");
+  Serial.println(i2c_config.address, HEX);
   #endif
 }
 
