@@ -32,7 +32,3 @@ void Accelerometer()
     deltz=0;
   }
 }
-  
-
-
-

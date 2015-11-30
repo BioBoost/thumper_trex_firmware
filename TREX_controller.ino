@@ -26,18 +26,43 @@
 // Operational mode of the controller
 enum OperationMode { ALLGOOD, SHUTDOWN, LOW_BATTERY };
 
+struct I2cConfig {
+  byte address;
+  byte frequency;   // I2C clock frequency can be 100kHz(default) or 400kHz
+};
+
+struct Motor {
+  byte pwm_frequency;   // value from 1-7
+  int speed;            // motor speeds -255 to +255
+  byte brake;           // brakes - non zero values enable brake
+  int current;          // motor current
+  int encoder;          // encoder values
+};
+
+struct Battery {
+  int threshold;
+  int voltage;      // Battery voltage*10 (accurate to 1 decimal place)
+};
+
+enum ErrorFlags {
+  START_BYTE = 0x01,      // Start byte not received or incorrect data packet size.
+  PWM_FREQ = 0x02,        // PWM frequency was not 1-7.
+  MOTOR_SPEED = 0x04,     // Left or right motor speed was not -255 to +255.
+  SERVO = 0x08,           // One or more servo positions was not -2400 to +2400.
+  IMPACT = 0x10,          // Impact sensitivity not 0-1023.
+  BATT_THRESHOLD = 0x20,  // Low battery was not 550 to 3000 (5.5V to 30V).
+  I2C_ADDRESS = 0x40,     // I²C slave address was not 0-127.
+  I2C_FREQ = 0x80         // I²C speed not 0 or 1 (100kHz or 400kHz)
+};
+
 // define global variables here
 OperationMode mode = ALLGOOD;
-int  lowbat=550;                                       // default low battery voltage is 5.5V
-byte errorflag;                                        // non zero if bad data packet received
-byte pwmfreq;                                          // value from 1-7
-byte i2cfreq;                                          // I2C clock frequency can be 100kHz(default) or 400kHz
-byte I2Caddress;                                       // I2C slave address
-int lmspeed,rmspeed;                                   // left and right motor speeds -255 to +255
-byte lmbrake,rmbrake;                                  // left and right brakes - non zero values enable brake
-int lmcur,rmcur;                                       // left and right motor current
-int lmenc,rmenc;                                       // left and right encoder values
-int volts;                                             // battery voltage*10 (accurate to 1 decimal place)
+Battery battery;
+I2cConfig i2c_config;
+Motor leftmotor;
+Motor rightmotor;
+byte errorflags;
+
 int xaxis,yaxis,zaxis;                                 // X, Y, Z accelerometer readings
 int deltx,delty,deltz;                                 // X, Y, Z impact readings 
 int magnitude;                                         // impact magnitude
@@ -67,52 +92,71 @@ void setup()
   //TCCR2B = TCCR2B & B11111000 | B00000011; pwmfreq=3;    // set timer 2 divisor to   32 for PWM frequency of    976.562500000 Hz
   //TCCR2B = TCCR2B & B11111000 | B00000100; pwmfreq=4;    // set timer 2 divisor to   64 for PWM frequency of    488.281250000 Hz
   //TCCR2B = TCCR2B & B11111000 | B00000101; pwmfreq=5;    // set timer 2 divisor to  128 for PWM frequency of    244.140625000 Hz
-    TCCR2B = TCCR2B & B11111000 | B00000110; pwmfreq=6;    // set timer 2 divisor to  256 for PWM frequency of    122.070312500 Hz
+
+  // Det timer 2 divisor to  256 for PWM frequency of 122.070312500 Hz
+  TCCR2B = TCCR2B & B11111000 | B00000110;
+
   //TCCR2B = TCCR2B & B11111000 | B00000111; pwmfreq=7;    // set timer 2 divisor to 1024 for PWM frequency of     30.517578125 Hz
 
+  // All IO pins are input by default on powerup
+  // Configure motor control pins for output
+  // pwm autoconfigures
 
-  //all IO pins are input by default on powerup --------- configure motor control pins for output -------- pwm autoconfigures -----------
+  pinMode(lmpwmpin,OUTPUT);         // configure left  motor PWM       pin for output
+  pinMode(lmdirpin,OUTPUT);         // configure left  motor direction pin for output
+  pinMode(lmbrkpin,OUTPUT);         // configure left  motor brake     pin for output
 
-  pinMode(lmpwmpin,OUTPUT);                            // configure left  motor PWM       pin for output
-  pinMode(lmdirpin,OUTPUT);                            // configure left  motor direction pin for output
-  pinMode(lmbrkpin,OUTPUT);                            // configure left  motor brake     pin for output
+  pinMode(rmpwmpin,OUTPUT);         // configure right motor PWM       pin for output
+  pinMode(rmdirpin,OUTPUT);         // configure right motor direction pin for output
+  pinMode(rmbrkpin,OUTPUT);         // configure right motor brake     pin for output
   
-  pinMode(rmpwmpin,OUTPUT);                            // configure right motor PWM       pin for output
-  pinMode(rmdirpin,OUTPUT);                            // configure right motor direction pin for output
-  pinMode(rmbrkpin,OUTPUT);                            // configure right motor brake     pin for output
-  
+  // Config battery
+  battery.threshold = 550;
+
+  // Config i2c
+  i2c_config.address = 0x07;
+  i2c_config.frequency = 0;
+
+  // Config Motor control
+  leftmotor.pwm_frequency = 6;
+  leftmotor.speed = 0;
+  leftmotor.brake = 0;
+
+  rightmotor.pwm_frequency = 6;
+  rightmotor.speed = 0;
+  rightmotor.brake = 0;
+
+  // Clear all errors
+  errorflags = 0;
+
   //----------------------------------------------------- Configure for I²C control ------------------------------------------------------
   MotorBeep(1);                                      // generate 1 beep from the motors to indicate I²C mode enabled
   byte i=EEPROM.read(0);                             // check EEPROM to see if I²C address has been previously stored
   if(i==0x55)                                        // B01010101 is written to the first byte of EEPROM memory to indicate that an I2C address has been previously stored
   {
-    I2Caddress=EEPROM.read(1);                       // read I²C address from EEPROM
+    i2c_config.address = EEPROM.read(1);                       // read I²C address from EEPROM
   }
   else                                               // EEPROM has not previously been used by this program
   {
     EEPROM.write(0,0x55);                            // set first byte to 0x55 to indicate EEPROM is now being used by this program
     EEPROM.write(1,0x07);                            // store default I²C address
-    I2Caddress=0x07;                                 // set I²C address to default
+    i2c_config.address = 0x07;                       // set I²C address to default
   }
   
-  Wire.begin(I2Caddress);                            // join I²C bus as a slave at I2Caddress
+  Wire.begin(i2c_config.address);                    // join I²C bus as a slave at I2Caddress
   Wire.onReceive(I2Ccommand);                        // specify ISR for data received
   Wire.onRequest(I2Cstatus);                         // specify ISR for data to be sent
 
   #ifdef _DO_DEBUG_
   Serial.begin(9600);
-  Serial.print("Starting TRex controller ...");
+  Serial.print("Starting TRex controller on address ");
+  Serial.println(i2c_config.address);
   #endif
 }
 
 
 void loop()
 {
-  //----------------------------------------------------- Diagnostic mode --------------------------------------------------------------
-  /*
-  DiagnosticMode();
-  return;
-  */
   //----------------------------------------------------- Shutdown mode ----------------------------------------------------------------
   if (mode == SHUTDOWN || mode == LOW_BATTERY)    // if battery voltage too low
   {
@@ -120,9 +164,6 @@ void loop()
     return;
   }
   
-  //----------------------------------------------------- I²C mode ----------------------------------------------------------------------
-  
-
   //===================================================== Programmer's Notes ============================================================
   //                                    Detecting impacts requires reasonably accurate timing.                                         //
   //                  As all timers are in use this code uses the micros() function to simulate a timer interrupt.                     // 
@@ -134,8 +175,6 @@ void loop()
 
 
   static byte alternate;                               // variable used to alternate between reading accelerometer and power analog inputs
-  
-  
   
   //----------------------------------------------------- Perform these functions every 1mS ---------------------------------------------- 
   if(micros()-time>999)                       
@@ -151,23 +190,13 @@ void loop()
     }
     else 
     {
-      lmcur=(analogRead(lmcurpin)-511)*48.83;          // read  left motor current sensor and convert reading to mA
-      rmcur=(analogRead(rmcurpin)-511)*48.83;          // read right motor current sensor and convert reading to mA
-      volts=analogRead(voltspin)*10/3.357;             // read battery level and convert to volts with 2 decimal places (eg. 1007 = 10.07 V)
-      if(volts<lowbat) mode = LOW_BATTERY;             // change to shutdown mode if battery voltage too low
+      leftmotor.current = (analogRead(lmcurpin)-511)*48.83;     // read  left motor current sensor and convert reading to mA
+      rightmotor.current = (analogRead(rmcurpin)-511)*48.83;    // read right motor current sensor and convert reading to mA
+      
+      battery.voltage = analogRead(voltspin)*10/3.357;          // read battery level and convert to volts with 2 decimal places (eg. 1007 = 10.07 V)
+      if(battery.voltage < battery.threshold) {
+        mode = LOW_BATTERY;                      // change to shutdown mode if battery voltage too low
+      }
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
