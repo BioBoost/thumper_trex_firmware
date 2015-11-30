@@ -114,7 +114,7 @@ void I2Ccommand(int recvflag)
     errorflag = errorflag | 128;                                               // incorrect i2cfreq given
   }
   
-  mode=0;                                                                      // breaks out of Shutdown mode when I²C command is given
+  mode = ALLGOOD;                                                                      // breaks out of Shutdown mode when I²C command is given
   Motors();                                                                    // update brake, speed and direction of motors
   Servos();                                                                    // update servo positions
 }

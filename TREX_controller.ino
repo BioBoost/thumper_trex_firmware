@@ -23,8 +23,11 @@
 #define startbyte 0x0F                                 // for serial communications each datapacket must start with this byte
 #define _DO_DEBUG_
 
+// Operational mode of the controller
+enum OperationMode { ALLGOOD, SHUTDOWN, LOW_BATTERY };
+
 // define global variables here
-byte mode=0;                                           // mode=0: I2C / mode=1: Radio Control / mode=2: Bluetooth / mode=3: Shutdown
+OperationMode mode = ALLGOOD;
 int  lowbat=550;                                       // default low battery voltage is 5.5V
 byte errorflag;                                        // non zero if bad data packet received
 byte pwmfreq;                                          // value from 1-7
@@ -79,25 +82,22 @@ void setup()
   pinMode(rmbrkpin,OUTPUT);                            // configure right motor brake     pin for output
   
   //----------------------------------------------------- Configure for I²C control ------------------------------------------------------
-  if(mode==0)                                          // no RC signal or bluetooth module detected
+  MotorBeep(1);                                      // generate 1 beep from the motors to indicate I²C mode enabled
+  byte i=EEPROM.read(0);                             // check EEPROM to see if I²C address has been previously stored
+  if(i==0x55)                                        // B01010101 is written to the first byte of EEPROM memory to indicate that an I2C address has been previously stored
   {
-    MotorBeep(1);                                      // generate 1 beep from the motors to indicate I²C mode enabled
-    byte i=EEPROM.read(0);                             // check EEPROM to see if I²C address has been previously stored
-    if(i==0x55)                                        // B01010101 is written to the first byte of EEPROM memory to indicate that an I2C address has been previously stored
-    {
-      I2Caddress=EEPROM.read(1);                       // read I²C address from EEPROM
-    }
-    else                                               // EEPROM has not previously been used by this program
-    {
-      EEPROM.write(0,0x55);                            // set first byte to 0x55 to indicate EEPROM is now being used by this program
-      EEPROM.write(1,0x07);                            // store default I²C address
-      I2Caddress=0x07;                                 // set I²C address to default
-    }
-    
-    Wire.begin(I2Caddress);                            // join I²C bus as a slave at I2Caddress
-    Wire.onReceive(I2Ccommand);                        // specify ISR for data received
-    Wire.onRequest(I2Cstatus);                         // specify ISR for data to be sent
+    I2Caddress=EEPROM.read(1);                       // read I²C address from EEPROM
   }
+  else                                               // EEPROM has not previously been used by this program
+  {
+    EEPROM.write(0,0x55);                            // set first byte to 0x55 to indicate EEPROM is now being used by this program
+    EEPROM.write(1,0x07);                            // store default I²C address
+    I2Caddress=0x07;                                 // set I²C address to default
+  }
+  
+  Wire.begin(I2Caddress);                            // join I²C bus as a slave at I2Caddress
+  Wire.onReceive(I2Ccommand);                        // specify ISR for data received
+  Wire.onRequest(I2Cstatus);                         // specify ISR for data to be sent
 
   #ifdef _DO_DEBUG_
   Serial.begin(9600);
@@ -114,7 +114,7 @@ void loop()
   return;
   */
   //----------------------------------------------------- Shutdown mode ----------------------------------------------------------------
-  if (mode==3)                                         // if battery voltage too low
+  if (mode == SHUTDOWN || mode == LOW_BATTERY)    // if battery voltage too low
   {
     Shutdown();                                        // Shutdown motors and servos
     return;
@@ -154,7 +154,7 @@ void loop()
       lmcur=(analogRead(lmcurpin)-511)*48.83;          // read  left motor current sensor and convert reading to mA
       rmcur=(analogRead(rmcurpin)-511)*48.83;          // read right motor current sensor and convert reading to mA
       volts=analogRead(voltspin)*10/3.357;             // read battery level and convert to volts with 2 decimal places (eg. 1007 = 10.07 V)
-      if(volts<lowbat) mode=3;                         // change to shutdown mode if battery voltage too low
+      if(volts<lowbat) mode = LOW_BATTERY;             // change to shutdown mode if battery voltage too low
     }
   }
 }
