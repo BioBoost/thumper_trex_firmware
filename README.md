@@ -29,8 +29,51 @@ Features:
 
 The controllers datasheet can be found [here](./manual/TREX-robot-controller-instruction-manual1.pdf).
 
-## Original Firmware
+## Firmware 
 
-The original firmware has been included in this repository and can be compiled and flashed using Arduino IDE.
+The can be compiled and flashed using Arduino IDE.
 
 Just select `Arduino Nano` as the board and make sure the processor is set to `ATmega328P (Old Bootloader)`. Give it some time to start after flashing.
+
+## Original Firmware
+
+The original firmware can be found tagged as `original`.
+
+```bash
+git checkout original
+```
+
+## New Firmware - Thumper v4
+
+The new firmware has been written especially for the [6WD Thumper Chassis](http://www.dagurobot.com/RS003B34?search=6wd&description=true).
+
+Both the command and status frames are minimized and therefore are not compatible with the original frames.
+
+The firmware for the v4 Thumper is tagged with `thumper-v4`.
+
+```bash
+git checkout thumper-v4
+```
+
+### Command Frame
+
+The command frame takes the following structure:
+
+| Start Byte | Left Motor Speed | Left Motor Brake | Right Motor Speed | Right Motor Brake | Battery Threshold |
+| --- | --- | --- | --- | --- | --- |
+| 1 byte | 2 bytes | 1 byte | 2 bytes | 1 byte | 2 bytes |
+| 0x0F | -256 to 256 | 0 or 1 | -256 to 256 | 0 or 1 | [549, 3001] |
+
+* The MSB of multi-byte data is always send first
+* If braking is different from `0`, then the absolute value of the motor speed is used as braking percentage (256 = 100% brake).
+
+### Status Frame
+
+The status frame is always send back as a response to the command frame. It has the following structure:
+
+| Start Byte | Errors Flags | Battery Voltage | Left Motor Current | Right Motor Current | Operation Mode |
+| --- | --- | --- | --- | --- | --- |
+| 1 byte | 1 byte | 2 bytes | 2 bytes | 2 bytes | 1 byte |
+
+* The MSB of multi-byte data is always send first
+* Mode is `ALLGOOD` (0), `SHUTDOWN` (1) or `LOW_BATTERY` (2)
