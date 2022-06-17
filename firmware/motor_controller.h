@@ -19,31 +19,32 @@ namespace TRex {
         this->motorTransition = motorTransition;
       }
 
-      void drive(Motor::Direction direction, uint8_t speed) {
-        this->control(direction, speed, false);
-      }
-
-      void brake(uint8_t power) {
-        this->control(Motor::Direction::KEEP_CURRENT, power, true);
-      }
-
-      void stop(void) {
-        this->control(Motor::Direction::KEEP_CURRENT, 0, false);
-      }
-
-    private:
-      void control(Motor::Direction direction, uint8_t speed, bool braking) {
+      // This method must be called on a regular interval !
+      void update(void) {
         MotorState current = { _motor.direction(), _motor.speed(), _motor.is_braking() };
-        MotorState target = { direction, speed, braking };
         MotorState next = motorTransition->next(current, target);
 
         _motor.control(next.direction, next.speed, next.braking);
+      }
+
+      void drive(Motor::Direction direction, uint8_t speed) {
+        target = { direction, speed, false };
+      }
+
+      void brake(uint8_t power) {
+        target = { _motor.direction(), power, true };
+      }
+
+      void stop(void) {
+        target = { _motor.direction(), 0, false };
       }
 
     private:
       Motor & _motor;
       IMotorStateTransition * motorTransition;
       DirectMotorTransition defaultTransition;
+
+      MotorState target = { _motor.direction(), 0, false };
   };
 
 }
