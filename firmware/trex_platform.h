@@ -20,9 +20,8 @@ namespace TRex {
           rightController(rightMotor),
           deltaTransition(1)
         {
-          // TODO: State trans should be stable first !
-          // leftController.motor_state_transition(&deltaTransition);
-          // rightController.motor_state_transition(&deltaTransition);
+          leftController.motor_state_transition(&deltaTransition);
+          rightController.motor_state_transition(&deltaTransition);
       }
 
       // Call this method as often as possible in the main loop()
