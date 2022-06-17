@@ -6,7 +6,7 @@ namespace TRex {
 
   class Motor {
 
-    public: enum class Direction { FORWARD = 0x00, BACKWARD = 0x01 };
+    public: enum class Direction { FORWARD = 0x00, BACKWARD = 0x01, KEEP_CURRENT = 0x02 };
 
     public:
       Motor(int directionPin, int pwmPin, int brakePin, int currentPin) {
@@ -51,14 +51,14 @@ namespace TRex {
         return (analogRead(currentPin)-511)*48.83;    // Return current in mA
       }
 
-    private:
       void control(Direction direction, uint8_t speed, bool brake) {
         _speed = speed;
-        _direction = direction;
+        _direction = (direction == Direction::KEEP_CURRENT ? _direction : direction);
         _braking = brake;
         write();
       }
 
+    private:
       void write(void) {
         digitalWrite(brakePin, _braking);
         digitalWrite(directionPin, (_direction == Direction::FORWARD));
