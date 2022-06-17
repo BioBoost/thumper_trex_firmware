@@ -1,7 +1,7 @@
 #include "motor.h"
 #include "io_pins.h"
-#include "motor_controller.h"
-#include "delta_motor_transition.h"
+#include "trex_platform.h"
+// #include "delta_motor_transition.h"
 
 #define _DEBUG_MODE
 
@@ -13,9 +13,10 @@
 #define debugln(format, ...) { }
 #endif
 
-TRex::Motor leftMotor(LEFT_MOTOR_DIRECTION_PIN, LEFT_MOTOR_PWM_PIN, LEFT_MOTOR_BRAKE_PIN, LEFT_MOTOR_CURRENT_PIN);
-TRex::MotorController leftController(leftMotor);
-TRex::DeltaMotorTransition deltaTransition(5);
+TRex::TRexPlatform trex;
+// TRex::Motor leftMotor(LEFT_MOTOR_DIRECTION_PIN, LEFT_MOTOR_PWM_PIN, LEFT_MOTOR_BRAKE_PIN, LEFT_MOTOR_CURRENT_PIN);
+// TRex::MotorController leftController(leftMotor);
+// TRex::DeltaMotorTransition deltaTransition(5);
 
 void setup() {
   TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 divisor to  256 for PWM frequency of 122.070312500 Hz
@@ -27,21 +28,14 @@ void setup() {
 
   debugln("Starting TRex Motor Controller ...");
 
-  leftController.motor_state_transition(&deltaTransition);
-  leftController.drive(TRex::Motor::Direction::FORWARD, 250);
+  trex.drive(TRex::Motor::Direction::FORWARD, 80, TRex::Motor::Direction::BACKWARD, 80);
 }
 
 void loop() {
-  // debug("Motor Speed: ");
-  // debugln(leftMotor.speed());
-  // debugln("--------------------------");
-
-  leftController.update();
+  trex.update();
 
   if (millis() > 6000) {
     debugln("Stopping motors");
-    leftController.stop();
+    trex.stop();
   }
-
-  delay(10);
 }

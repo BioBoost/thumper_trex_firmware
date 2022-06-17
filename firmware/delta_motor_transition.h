@@ -24,6 +24,7 @@ namespace TRex {
         uint8_t speed = current.speed;
         Motor::Direction direction = current.direction;
 
+        // TODO: Still bugged. Can can overflows if for example T: 3 en C: 5 and delta = 10
         if (current.direction == target.direction) {
 
           // std::min and std::max for making sure not overshooting target
@@ -33,19 +34,20 @@ namespace TRex {
           else if (target.speed < current.speed) {          // Slowdown
             speed = max(current.speed - _delta, target.speed);
           }
-          // else target reached
+          // else target speed is reached
 
         }
-        
-        // else {
+        else {
 
-        //   if (current.speed > 0) speed = current.speed - _delta;    // Still slowing down
+          if (current.speed > 0) {
+            speed = max(current.speed - _delta, 0);    // Still slowing down
+          }
         //   else if (current.speed == 0) {    // Just switch directions
         //     direction = (current.direction == Motor::Direction::FORWARD ? Motor::Direction::BACKWARD : Motor::Direction::FORWARD);
         //     if (target.speed > current.speed) speed = current.speed + _delta;   // We can also start speedup
         //   }
 
-        // }
+        }
 
         // Serial.print("Next Speed => ");
         // Serial.println(speed);
