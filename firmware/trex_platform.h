@@ -5,10 +5,12 @@
 #include "motor_controller.h"
 #include "delta_motor_transition.h"
 #include "motor_state.h"
+#include "battery.h"
 
 namespace TRex {
 
   #define UPDATE_TIME_MS  1
+  #define BATTERY_START_THRESHOLD       7.0
 
   class TRexPlatform {
 
@@ -16,6 +18,7 @@ namespace TRex {
       TRexPlatform(void)
         : leftMotor(LEFT_MOTOR_DIRECTION_PIN, LEFT_MOTOR_PWM_PIN, LEFT_MOTOR_BRAKE_PIN, LEFT_MOTOR_CURRENT_PIN),
           rightMotor(RIGHT_MOTOR_DIRECTION_PIN, RIGHT_MOTOR_PWM_PIN, RIGHT_MOTOR_BRAKE_PIN, RIGHT_MOTOR_CURRENT_PIN),
+          battery(BATTERY_VOLTAGE_PIN, BATTERY_START_THRESHOLD),
           leftController(leftMotor),
           rightController(rightMotor),
           deltaTransition(1)
@@ -59,6 +62,8 @@ namespace TRex {
 
       unsigned long lastUpdate = 0;
       // unsigned long lastControl;
+
+      Battery battery;
   };
 
 }
