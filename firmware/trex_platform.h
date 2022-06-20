@@ -6,6 +6,7 @@
 #include "delta_motor_transition.h"
 #include "motor_state.h"
 #include "battery.h"
+#include "status.h"
 
 namespace TRex {
 
@@ -76,6 +77,33 @@ namespace TRex {
         }
       }
 
+      void shutdown(void) {
+        // status = StatusFlags::SHUTDOWN;
+        leftMotor.stop();
+        rightMotor.stop();
+      }
+
+      Status status(void) {
+        Status status;
+
+        status.flags = statusFlags;
+
+        status.battery.voltage = battery.voltage();
+        status.battery.threshold = battery.threshold();
+
+        status.leftMotor.speed = leftMotor.speed();
+        status.leftMotor.current = leftMotor.current();
+        status.leftMotor.direction = leftMotor.direction();
+        status.leftMotor.braking = leftMotor.is_braking();
+
+        status.rightMotor.speed = rightMotor.speed();
+        status.rightMotor.current = rightMotor.current();
+        status.rightMotor.direction = rightMotor.direction();
+        status.rightMotor.braking = rightMotor.is_braking();
+
+        return status;
+      }
+
     private:
       Motor leftMotor;
       MotorController leftController;
@@ -89,6 +117,8 @@ namespace TRex {
       // unsigned long lastControl;
 
       Battery battery;
+      
+      StatusFlags statusFlags = StatusFlags::OK;
   };
 
 }
