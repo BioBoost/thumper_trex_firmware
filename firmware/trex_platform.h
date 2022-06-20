@@ -11,6 +11,7 @@ namespace TRex {
 
   #define UPDATE_TIME_MS  1
   #define BATTERY_START_THRESHOLD       7.0
+  #define BEEP_DURATION_MS              200
 
   class TRexPlatform {
 
@@ -49,6 +50,30 @@ namespace TRex {
       void stop(void) {
         leftController.stop();
         rightController.stop();
+      }
+
+      void beep(uint8_t beeps) {
+        leftMotor.stop();
+        rightMotor.stop();
+        
+        for (int b = 0; b < beeps; b++) {
+          for (int duration = 0; duration < 2*BEEP_DURATION_MS ; duration++) {
+            leftMotor.forward(255);
+            rightMotor.forward(255);
+            delayMicroseconds(50);
+            leftMotor.stop();
+            rightMotor.stop();
+            delayMicroseconds(200);       // Generates 2kHz tone
+
+            leftMotor.backward(255);
+            rightMotor.backward(255);
+            delayMicroseconds(50);
+            leftMotor.stop();
+            rightMotor.stop();
+            delayMicroseconds(200);       // Generates 2kHz tone
+          }
+          delay(BEEP_DURATION_MS);     // Pause between beeps
+        }
       }
 
     private:

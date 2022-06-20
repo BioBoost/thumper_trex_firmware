@@ -11,11 +11,10 @@ void setup() {
 
   debugln("Starting TRex Motor Controller ...");
 
-  // trex.drive(TRex::Motor::Direction::FORWARD, 80, TRex::Motor::Direction::BACKWARD, 80);
+  trex.beep(2);
 }
 
 void loop() {
-
   trex.update();
 
   // if (millis() > 6000) {

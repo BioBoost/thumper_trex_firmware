@@ -35,6 +35,14 @@ namespace TRex {
         control(_direction, 0, false);
       }
 
+      void forward(uint8_t speed) {
+        drive(Direction::FORWARD, speed);
+      }
+
+      void backward(uint8_t speed) {
+        drive(Direction::BACKWARD, speed);
+      }
+
       Direction direction(void) {
         return _direction;
       }
