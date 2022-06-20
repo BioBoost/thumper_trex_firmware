@@ -2,13 +2,16 @@
 
 #include <stdint.h>
 #include "motor.h"
+#include "enum_flags.h"
 
 namespace TRex {
   enum class StatusFlags {
     OK          = 0x00,
-    SHUTDOWN    = 0x01,
-    TIMEOUT     = 0x02,
+    TIMEOUT     = 0x01,
+    BATTERY_LOW = 0x02,
+    // Must be powers of 2 !
   };
+  DEFINE_ENUM_FLAG_OPERATORS(StatusFlags);
 
   struct MotorStatus {
     uint8_t speed = 0;

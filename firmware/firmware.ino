@@ -5,11 +5,14 @@
 #include "trex_platform.h"
 #include "status.h"
 #include "debug.h"
+#include "error_flags.h"
 
 #define I2C_ADDRESS                   0x20
 #define I2C_FREQUENCY                 100000
 #define STATUS_PACKET_START_BYTE      0xAB
 #define COMMAND_PACKET_START_BYTE     0xBA
+#define COMMAND_PACKET_MAX_SIZE       6
+enum class I2cCommand { DRIVE = 0x01, STOP = 0x02 };
 
 TRex::TRexPlatform trex;
 TRex::Status status;
@@ -56,27 +59,76 @@ void i2c_read_request_handler(void) {
   debugln("----------------");
 }
 
+
+// Note: This handler will lock up the device if System calls such as Particle.publish() are made within,
+// due to interrupts being disabled for atomic operations during this handler.
+// Do not overload this handler with extra function calls other than what is immediately required to receive I2C data.
+// Post process outside of this handler.
+void i2c_write_request_handler(int numberOfBytes) {
+
+  // [ 0xBA 0x01 LeftDir LeftSpeed RightDir RightSpeed ]      // Speed command
+  // [ 0xBA 0x02 ]                                            // Stop command
+  
+  TRex::ErrorFlags errors = TRex::ErrorFlags::NONE;
+
+  uint8_t start = Wire.read();
+
+  if (start != COMMAND_PACKET_START_BYTE) errors = TRex::ErrorFlags::START_BYTE;
+  if (numberOfBytes != COMMAND_PACKET_MAX_SIZE) errors = TRex::ErrorFlags::PACKET_SIZE;
+
+  // Not 100% sure if this is best way.
+  // Read all remaining bytes but ignore them
+  if (errors != TRex::ErrorFlags::NONE) {
+    while (Wire.available()) { Wire.read(); };
+    return;
+  }
+
+  // We can call trex drive methods and such here because the interaction
+  // with the hardware is done inside the trex.update() method
+  I2cCommand command = (I2cCommand)(Wire.read());
+  switch(command) {
+    case I2cCommand::DRIVE: {
+      debug("Received DRIVE command");
+      TRex::Motor::Direction leftDir = (TRex::Motor::Direction)(Wire.read());
+      uint8_t leftSpeed = Wire.read();
+      TRex::Motor::Direction rightDir = (TRex::Motor::Direction)(Wire.read());
+      uint8_t rightSpeed = Wire.read();
+      trex.drive(leftDir, leftSpeed, rightDir, rightSpeed);
+      break;
+    }
+    case I2cCommand::STOP: {
+      debug("Received STOP command");
+      trex.stop();
+      break;
+    }
+  }
+
+  // Not all commands process all packet bytes. Here we discard remaining bytes.
+  while (Wire.available()) { Wire.read(); };
+}
+
+
 void setup() {
   TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 divisor to  256 for PWM frequency of 122.070312500 Hz
     // Checkout original code for more information about this
 
   Serial.begin(115200);
-  Wire.begin(address);
-  Wire.setClock(frequency);
-  Wire.onReceive(i2c_read_request_handler);
+  Wire.begin(I2C_ADDRESS);
+  Wire.setClock(I2C_FREQUENCY);
+  Wire.onReceive(i2c_write_request_handler);
+  Wire.onRequest(i2c_read_request_handler);
 
   debugln("Starting TRex Motor Controller ...");
 
-  trex.register_status_interface(&i2c_slave);
   trex.beep(2);
 }
 
+bool started = false;
 void loop() {
   trex.update();
   status = trex.status();
-
-  // if (millis() > 6000) {
-  //   debugln("Stopping motors");
-  //   trex.stop();
-  // }
+  if (!started && (millis() > 6000)) {
+     trex.drive(TRex::Motor::Direction::FORWARD, 60, TRex::Motor::Direction::FORWARD, 60);
+     started = true;
+  }
 }

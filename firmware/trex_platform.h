@@ -7,13 +7,13 @@
 #include "motor_state.h"
 #include "battery.h"
 #include "status.h"
-#include "i_status_publish.h"
 
 namespace TRex {
 
-  #define UPDATE_TIME_MS  1
+  #define UPDATE_TIME_MS                1
   #define BATTERY_START_THRESHOLD       7.0
   #define BEEP_DURATION_MS              200
+  #define TIMEOUT_MS                    500
 
   class TRexPlatform {
 
@@ -32,6 +32,18 @@ namespace TRex {
 
       // Call this method as often as possible in the main loop()
       void update(void) {
+        if ((micros()-lastCommand) >= TIMEOUT_MS * 1000L) {
+          debugln("TIMEOUT - No command received within timeout window");
+          statusFlags = statusFlags | StatusFlags::TIMEOUT;
+          shutdown();
+        }
+        
+        if (battery.is_threshold_exceeded()) {
+          statusFlags = statusFlags | StatusFlags::BATTERY_LOW;
+        }
+
+        if (statusFlags != StatusFlags::OK) return;
+
         if ((micros()-lastUpdate) >= UPDATE_TIME_MS * 1000L) {
           leftController.update();
           rightController.update();
@@ -41,16 +53,25 @@ namespace TRex {
       }
 
       void drive(Motor::Direction leftDirection, uint8_t leftSpeed, Motor::Direction rightDirection, uint8_t rightSpeed) {
+        lastCommand = micros();
+        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
+
         leftController.drive(leftDirection, leftSpeed);
         rightController.drive(rightDirection, rightSpeed);
       }
 
       void brake(uint8_t power) {
+        lastCommand = micros();
+        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
+
         leftController.brake(power);
         rightController.brake(power);
       }
 
       void stop(void) {
+        lastCommand = micros();
+        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
+
         leftController.stop();
         rightController.stop();
       }
@@ -79,14 +100,19 @@ namespace TRex {
         }
       }
 
+      // By-passes motor control !
       void shutdown(void) {
-        // status = StatusFlags::SHUTDOWN;
+        debugln("Shutting down motors");
         leftMotor.stop();
         rightMotor.stop();
+
+        // Also inform motor controllers of stop
+        leftController.stop();
+        rightController.stop();
       }
 
       Status status(void) {
-        return status;
+        return _status;
       }
 
     private:
@@ -108,7 +134,7 @@ namespace TRex {
         status.rightMotor.direction = rightMotor.direction();
         status.rightMotor.braking = rightMotor.is_braking();
 
-        this->status = status;
+        this->_status = status;
       }
 
     private:
@@ -121,11 +147,11 @@ namespace TRex {
       DeltaMotorTransition deltaTransition;
 
       unsigned long lastUpdate = 0;
-      // unsigned long lastControl;
+      unsigned long lastCommand = 0;
 
       Battery battery;
       
-      Status status;
+      Status _status;
       StatusFlags statusFlags = StatusFlags::OK;
   };
 
