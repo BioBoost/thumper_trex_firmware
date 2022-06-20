@@ -8,7 +8,6 @@
 
 #define I2C_ADDRESS                   0x20
 #define I2C_FREQUENCY                 100000
-
 #define STATUS_PACKET_START_BYTE      0xAB
 #define COMMAND_PACKET_START_BYTE     0xBA
 
@@ -62,20 +61,19 @@ void setup() {
     // Checkout original code for more information about this
 
   Serial.begin(115200);
-
-  Wire.begin(I2C_ADDRESS);
-  Wire.setClock(I2C_FREQUENCY); 
-  Wire.onRequest(i2c_read_request_handler);
-  // Wire.onReceive(i2c_write_request_handler);
+  Wire.begin(address);
+  Wire.setClock(frequency);
+  Wire.onReceive(i2c_read_request_handler);
 
   debugln("Starting TRex Motor Controller ...");
 
+  trex.register_status_interface(&i2c_slave);
   trex.beep(2);
 }
 
 void loop() {
   trex.update();
-  status = trex.status();     // Fetch latest status
+  status = trex.status();
 
   // if (millis() > 6000) {
   //   debugln("Stopping motors");

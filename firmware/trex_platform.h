@@ -7,6 +7,7 @@
 #include "motor_state.h"
 #include "battery.h"
 #include "status.h"
+#include "i_status_publish.h"
 
 namespace TRex {
 
@@ -35,6 +36,7 @@ namespace TRex {
           leftController.update();
           rightController.update();
           lastUpdate = micros();
+          refresh_status();
         }
       }
 
@@ -84,6 +86,11 @@ namespace TRex {
       }
 
       Status status(void) {
+        return status;
+      }
+
+    private:
+      void refresh_status(void) {
         Status status;
 
         status.flags = statusFlags;
@@ -101,7 +108,7 @@ namespace TRex {
         status.rightMotor.direction = rightMotor.direction();
         status.rightMotor.braking = rightMotor.is_braking();
 
-        return status;
+        this->status = status;
       }
 
     private:
@@ -118,6 +125,7 @@ namespace TRex {
 
       Battery battery;
       
+      Status status;
       StatusFlags statusFlags = StatusFlags::OK;
   };
 
