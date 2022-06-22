@@ -7,7 +7,7 @@
 #include "debug.h"
 #include "error_flags.h"
 
-#define I2C_ADDRESS                   0x20
+#define I2C_ADDRESS                   0x30
 #define I2C_FREQUENCY                 100000
 #define STATUS_PACKET_START_BYTE      0xAB
 #define COMMAND_PACKET_START_BYTE     0xBA
@@ -101,6 +101,10 @@ void i2c_write_request_handler(int numberOfBytes) {
       trex.stop();
       break;
     }
+    default: {
+      debug("Unknown command");
+      // TODO: Set error flag
+    }
   }
 
   // Not all commands process all packet bytes. Here we discard remaining bytes.
@@ -119,16 +123,13 @@ void setup() {
   Wire.onRequest(i2c_read_request_handler);
 
   debugln("Starting TRex Motor Controller ...");
+  debug("I2C Address = 0x");
+  debugln(I2C_ADDRESS, HEX);
 
   trex.beep(2);
 }
 
-bool started = false;
 void loop() {
   trex.update();
   status = trex.status();
-  if (!started && (millis() > 6000)) {
-     trex.drive(TRex::Motor::Direction::FORWARD, 60, TRex::Motor::Direction::FORWARD, 60);
-     started = true;
-  }
 }
