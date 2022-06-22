@@ -1,6 +1,6 @@
 #pragma once
 
-#define _DEBUG_MODE
+// #define _DEBUG_MODE
 
 #ifdef _DEBUG_MODE
 #define debug(text, ...) { Serial.print(text, ## __VA_ARGS__); }

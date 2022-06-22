@@ -10,10 +10,10 @@
 
 namespace TRex {
 
-  #define UPDATE_TIME_MS                1
+  #define UPDATE_TIME_MS                5
   #define BATTERY_START_THRESHOLD       7.0
   #define BEEP_DURATION_MS              200
-  #define TIMEOUT_MS                    100
+  #define TIMEOUT_MS                    200
 
   class TRexPlatform {
 
