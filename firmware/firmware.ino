@@ -10,12 +10,20 @@
 #define I2C_ADDRESS                   0x30
 #define I2C_FREQUENCY                 100000
 #define STATUS_PACKET_START_BYTE      0xAB
+#define STATUS_PACKET_SIZE            15
 #define COMMAND_PACKET_START_BYTE     0xBA
 #define COMMAND_PACKET_MAX_SIZE       6
+
 enum class I2cCommand { DRIVE = 0x01, STOP = 0x02 };
 
 TRex::TRexPlatform trex;
 TRex::Status status;
+
+volatile bool commandReceived = false;
+TRex::Motor::Direction leftDir = TRex::Motor::Direction::FORWARD;
+uint8_t leftSpeed = 0;
+TRex::Motor::Direction rightDir = TRex::Motor::Direction::FORWARD;
+uint8_t rightSpeed = 0;
 
 // We should probable not access the battery and motors directly
 // as these talk to the hardware. An analogue value read can take
@@ -47,6 +55,8 @@ void i2c_read_request_handler(void) {
     0x00      // ERRORS = NONE
   };
 
+  static_assert(sizeof(buffer) == STATUS_PACKET_SIZE, "STATUS_PACKET_SIZE does not match actual buffer size");
+
   Wire.write(buffer, sizeof(buffer));
 
   //errorFlags = TRex::ErrorFlags::NONE;        // Reset error flags once they are reported to the I2C master
@@ -56,6 +66,7 @@ void i2c_read_request_handler(void) {
     debug(" 0x");
     debug(buffer[i], HEX);
   }
+  debugln("");
   debugln("----------------");
 }
 
@@ -66,7 +77,7 @@ void i2c_read_request_handler(void) {
 // Post process outside of this handler.
 void i2c_write_request_handler(int numberOfBytes) {
 
-  // [ 0xBA 0x01 LeftDir LeftSpeed RightDir RightSpeed ]      // Speed command
+  // [ 0xBA 0x01 LeftDir LeftSpeed RightDir RightSpeed ]      // Drive command
   // [ 0xBA 0x02 ]                                            // Stop command
   
   TRex::ErrorFlags errors = TRex::ErrorFlags::NONE;
@@ -83,26 +94,38 @@ void i2c_write_request_handler(int numberOfBytes) {
     return;
   }
 
-  // We can call trex drive methods and such here because the interaction
-  // with the hardware is done inside the trex.update() method
+  // Can't call the actual trex methods here because some
+  // override motor target internally, like shutdown.
   I2cCommand command = (I2cCommand)(Wire.read());
   switch(command) {
     case I2cCommand::DRIVE: {
-      debug("Received DRIVE command");
-      TRex::Motor::Direction leftDir = (TRex::Motor::Direction)(Wire.read());
-      uint8_t leftSpeed = Wire.read();
-      TRex::Motor::Direction rightDir = (TRex::Motor::Direction)(Wire.read());
-      uint8_t rightSpeed = Wire.read();
-      trex.drive(leftDir, leftSpeed, rightDir, rightSpeed);
+      debugln("Received DRIVE command");
+      leftDir = (TRex::Motor::Direction)(Wire.read());
+      leftSpeed = Wire.read();
+      rightDir = (TRex::Motor::Direction)(Wire.read());
+      rightSpeed = Wire.read();
+
+      debug("\tLeft Dir: ");
+      debugln((uint8_t)leftDir);
+      debug("\tLeft Speed: ");
+      debugln(leftSpeed);
+      debug("\tRight Dir: ");
+      debugln((uint8_t)rightDir);
+      debug("\tRight Speed: ");
+      debugln(rightSpeed);
+
+      commandReceived = true;
       break;
     }
     case I2cCommand::STOP: {
-      debug("Received STOP command");
-      trex.stop();
+      debugln("Received STOP command");
+      leftSpeed = 0;
+      rightSpeed = 0;
+      commandReceived = true;
       break;
     }
     default: {
-      debug("Unknown command");
+      debugln("Unknown command");
       // TODO: Set error flag
     }
   }
@@ -130,6 +153,10 @@ void setup() {
 }
 
 void loop() {
+  if (commandReceived) {
+    trex.drive(leftDir, leftSpeed, rightDir, rightSpeed);
+    commandReceived = false;
+  }
   trex.update();
   status = trex.status();
 }

@@ -13,7 +13,7 @@ namespace TRex {
   #define UPDATE_TIME_MS                1
   #define BATTERY_START_THRESHOLD       7.0
   #define BEEP_DURATION_MS              200
-  #define TIMEOUT_MS                    500
+  #define TIMEOUT_MS                    100
 
   class TRexPlatform {
 
@@ -34,11 +34,19 @@ namespace TRex {
       void update(void) {
         refresh_status();
 
+        static int counter = 0;
         if (statusFlags != StatusFlags::OK) {
-          debug("Status:");
-          debug(((statusFlags & StatusFlags::TIMEOUT) == StatusFlags::TIMEOUT) ? " TIMEOUT" : "");
-          debug(((statusFlags & StatusFlags::BATTERY_LOW) == StatusFlags::BATTERY_LOW) ? " BATTERY_LOW" : "");
-          debugln("");
+          counter = (counter + 1) % 1000;
+          if (counter == 0) {
+            debug("Status:");
+            debug(((statusFlags & StatusFlags::TIMEOUT) == StatusFlags::TIMEOUT) ? " TIMEOUT" : "");
+            debug(((statusFlags & StatusFlags::BATTERY_LOW) == StatusFlags::BATTERY_LOW) ? " BATTERY_LOW" : "");
+            debugln("");
+
+            debug("Battery voltage: ");
+            debug(_status.battery.voltage);
+            debugln("V");
+          }
 
           shutdown();
           return;

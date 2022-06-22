@@ -6,7 +6,7 @@ namespace TRex {
 
   class Motor {
 
-    public: enum class Direction { FORWARD = 0x00, BACKWARD = 0x01 };     ///, KEEP_CURRENT = 0x02 
+    public: enum class Direction { FORWARD = 0x00, BACKWARD = 0x01 };
 
     public:
       Motor(int directionPin, int pwmPin, int brakePin, int currentPin) {
