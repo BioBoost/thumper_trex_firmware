@@ -32,46 +32,39 @@ namespace TRex {
 
       // Call this method as often as possible in the main loop()
       void update(void) {
-        if ((micros()-lastCommand) >= TIMEOUT_MS * 1000L) {
-          debugln("TIMEOUT - No command received within timeout window");
-          statusFlags = statusFlags | StatusFlags::TIMEOUT;
-          shutdown();
-        }
-        
-        if (battery.is_threshold_exceeded()) {
-          statusFlags = statusFlags | StatusFlags::BATTERY_LOW;
-        }
+        refresh_status();
 
-        if (statusFlags != StatusFlags::OK) return;
+        if (statusFlags != StatusFlags::OK) {
+          debug("Status:");
+          debug(((statusFlags & StatusFlags::TIMEOUT) == StatusFlags::TIMEOUT) ? " TIMEOUT" : "");
+          debug(((statusFlags & StatusFlags::BATTERY_LOW) == StatusFlags::BATTERY_LOW) ? " BATTERY_LOW" : "");
+          debugln("");
+
+          shutdown();
+          return;
+        }
 
         if ((micros()-lastUpdate) >= UPDATE_TIME_MS * 1000L) {
           leftController.update();
           rightController.update();
           lastUpdate = micros();
-          refresh_status();
         }
       }
 
       void drive(Motor::Direction leftDirection, uint8_t leftSpeed, Motor::Direction rightDirection, uint8_t rightSpeed) {
         lastCommand = micros();
-        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
-
         leftController.drive(leftDirection, leftSpeed);
         rightController.drive(rightDirection, rightSpeed);
       }
 
       void brake(uint8_t power) {
         lastCommand = micros();
-        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
-
         leftController.brake(power);
         rightController.brake(power);
       }
 
       void stop(void) {
         lastCommand = micros();
-        statusFlags = statusFlags ^ StatusFlags::TIMEOUT;
-
         leftController.stop();
         rightController.stop();
       }
@@ -102,7 +95,6 @@ namespace TRex {
 
       // By-passes motor control !
       void shutdown(void) {
-        debugln("Shutting down motors");
         leftMotor.stop();
         rightMotor.stop();
 
@@ -118,6 +110,11 @@ namespace TRex {
     private:
       void refresh_status(void) {
         Status status;
+
+        statusFlags = StatusFlags::OK;
+        if ((micros()-lastCommand) >= TIMEOUT_MS * 1000L) statusFlags = set_enum_flag(statusFlags, StatusFlags::TIMEOUT);
+        if (battery.is_threshold_exceeded()) statusFlags = set_enum_flag(statusFlags, StatusFlags::BATTERY_LOW);
+          // TODO: Is it valid to check battery while driving? Voltage drops significant under load.
 
         status.flags = statusFlags;
 
