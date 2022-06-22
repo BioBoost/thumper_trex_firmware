@@ -13,7 +13,7 @@ namespace TRex {
       }
 
       double voltage(void) const {
-        return analogRead(pin) / 3.357;
+        return analogRead(pin) / (10 * 3.357);
       }
 
       void threshold(double voltage) {
